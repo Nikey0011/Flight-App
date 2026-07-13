@@ -303,6 +303,21 @@ if uploaded_file:
                 st.success(f"Processed {len(filtered)} flights (year {year})")
                 col1, col_mid, col2 = st.columns([1, 0.9, 1])
                 fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"
+
+            docx_two_page = build_docx_stream(filtered, s_dt, e_dt).getvalue()
+            docx_one_page = build_docx_onepage_stream(filtered, s_dt, e_dt).getvalue()
+
+            col1.download_button(
+                "📥 Download Flight List TWO pages",
+                data=docx_two_page,
+                file_name=f"{fn}.docx"
+            )
+
+            col_mid.download_button(
+                "📥 Download Flight List ONE Page",
+                data=docx_one_page,
+                file_name=f"{fn}_onepage.docx"
+            )
                
                # col1.download_button("📥 Download Flight List TWO pages", data=build_docx_stream(filtered, s_dt, e_dt).getvalue(), file_name=f"{fn}.docx")
                
