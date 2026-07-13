@@ -81,10 +81,6 @@ def try_parse_date_header(line: str, year: int) -> Optional[datetime.date]:
         try: return datetime.strptime(text, fmt).date()
         except Exception: continue
     return None
-    
-@st.cache_data
-def parse_cached(lines_tuple, year):
-    return parse_cached(list(lines_tuple), year)
 
 
 def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
@@ -295,7 +291,7 @@ if uploaded_file:
         st.error(f"Failed to read uploaded file: {e}"); lines = []
 
     if lines:
-        all_recs = parse_cached(tuple(lines), year)
+        all_recs = parse_raw_lines(lines, year)
         if not all_recs:
             st.warning("No records parsed. Check file format.")
         else:
