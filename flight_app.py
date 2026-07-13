@@ -305,47 +305,32 @@ if uploaded_file:
     
             st.success(f"Processed {len(filtered)} flights (year {year})")
             col1, col_mid, col2 = st.columns([1, 0.9, 1])
-            fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"
-
-
+            fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"                
+            
             col1.download_button(
-                   "📥 Download Flight List TWO pages",
-                   data=b"test",
-                   file_name=f"{fn}.docx"
+                "📥 Download Flight List TWO pages",
+                data=b"test",
+                file_name=f"{fn}.docx"
             )
-
-              #  col_mid.download_button(
-              #      "📥 Download Flight List ONE Page",
-              #      data=b"test",
-              #      file_name=f"{fn}_onepage.docx"
-              #  )
-
-                # PDF button temporarily disabled for testing
-                # col2.download_button(
-                #     "📥 Download Folder Labels PDF",
-                #     data=build_labels_stream(filtered, label_start).getvalue(),
-                #     file_name=f"Labels_{fn}.pdf"
-                # )
-
 
             table_rows = []
 
-                for i, r in enumerate(filtered):
-                    try:
-                        tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
-                    except:
-                        tdisp = r['time']
+            for i, r in enumerate(filtered):
+                try:
+                    tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
+                except:
+                    tdisp = r['time']
 
-                    table_rows.append({
-                        'No': label_start + i,
-                        'Flight': r['flight'],
-                        'Time': tdisp,
-                        'Dest': r['dest'],
-                        'Type': r['type'],
-                        'Reg': r['reg']
-                    })
+                table_rows.append({
+                    'No': label_start + i,
+                    'Flight': r['flight'],
+                    'Time': tdisp,
+                    'Dest': r['dest'],
+                    'Type': r['type'],
+                    'Reg': r['reg']
+                })
 
-                st.table(table_rows)
+            st.table(table_rows)
 
 
 
