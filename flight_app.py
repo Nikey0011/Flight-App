@@ -295,25 +295,24 @@ if uploaded_file:
         st.error(f"Failed to read uploaded file: {e}"); lines = []
 
     if lines:
-        all_recs = parse_raw_lines(tuple(lines), year)
+        all_recs = parse_cached(tuple(lines), year)
         if not all_recs:
             st.warning("No records parsed. Check file format.")
         else:
-            filtered, s_dt, e_dt = filter_records(all_recs, s_time, e_time)
-            if s_dt and e_dt and e_dt <= s_dt:
-                st.error("Invalid time window.")
-            elif not filtered:
-                st.warning("No flights matched the filters.")
-            else:
-                st.success(f"Processed {len(filtered)} flights (year {year})")
-                col1, col_mid, col2 = st.columns([1, 0.9, 1])
-                fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"
+            filtered = all_recs
+            s_dt = datetime.now()
+            e_dt = datetime.now()
+    
+            st.success(f"Processed {len(filtered)} flights (year {year})")
+            col1, col_mid, col2 = st.columns([1, 0.9, 1])
+            fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"
 
-                col1.download_button(
-                    "📥 Download Flight List TWO pages",
-                    data=b"test",
-                    file_name=f"{fn}.docx"
-                )
+
+            col1.download_button(
+                   "📥 Download Flight List TWO pages",
+                   data=b"test",
+                   file_name=f"{fn}.docx"
+            )
 
               #  col_mid.download_button(
               #      "📥 Download Flight List ONE Page",
