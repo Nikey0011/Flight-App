@@ -82,7 +82,6 @@ def try_parse_date_header(line: str, year: int) -> Optional[datetime.date]:
         except Exception: continue
     return None
 
-
 def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
     records = []
     current_date = None
@@ -295,38 +294,34 @@ if uploaded_file:
         if not all_recs:
             st.warning("No records parsed. Check file format.")
         else:
-            filtered = all_recs
-            s_dt = datetime.now()
-            e_dt = datetime.now()
-    
-            st.success(f"Processed {len(filtered)} flights (year {year})")
-            col1, col_mid, col2 = st.columns([1, 0.9, 1])
-            fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"                
-            
-            col1.download_button(
-                "📥 Download Flight List TWO pages",
-                data=b"test",
-                file_name=f"{fn}.docx"
-            )
+            filtered, s_dt, e_dt = filter_records(all_recs, s_time, e_time)
+            if s_dt and e_dt and e_dt <= s_dt:
+                st.error("Invalid time window.")
+            elif not filtered:
+                st.warning("No flights matched the filters.")
+            else:
+                st.success(f"Processed {len(filtered)} flights (year {year})")
+                col1, col_mid, col2 = st.columns([1, 0.9, 1])
+                fn = f"List_{s_dt.strftime('%d-%m')}" if s_dt else "List"
+                col1.download_button("📥 Download Flight List TWO pages", data=build_docx_stream(filtered, s_dt, e_dt).getvalue(), file_name=f"{fn}.docx")
+                col_mid.download_button("📥 Download Flight List ONE Page", data=build_docx_onepage_stream(filtered, s_dt, e_dt).getvalue(), file_name=f"{fn}_onepage.docx")
+                col2.download_button("📥 Download Folder Labels PDF", data=build_labels_stream(filtered, label_start).getvalue(), file_name=f"Labels_{fn}.pdf")
+                
+                table_rows = []
+                for i, r in enumerate(filtered):
+                    try: tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
+                    except: tdisp = r['time']
+                    table_rows.append({'No': label_start + i, 'Flight': r['flight'], 'Time': tdisp, 'Dest': r['dest'], 'Type': r['type'], 'Reg': r['reg']})
+                st.table(table_rows)
 
-            table_rows = []
 
-            for i, r in enumerate(filtered):
-                try:
-                    tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
-                except:
-                    tdisp = r['time']
 
-                table_rows.append({
-                    'No': label_start + i,
-                    'Flight': r['flight'],
-                    'Time': tdisp,
-                    'Dest': r['dest'],
-                    'Type': r['type'],
-                    'Reg': r['reg']
-                })
 
-            st.table(table_rows)
+
+
+
+
+
 
 
 
