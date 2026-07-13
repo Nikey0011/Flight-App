@@ -84,7 +84,7 @@ def try_parse_date_header(line: str, year: int) -> Optional[datetime.date]:
     
 @st.cache_data
 def parse_cached(lines_tuple, year):
-    return parse_raw_lines(list(lines_tuple), year)
+    return parse_cached(list(lines_tuple), year)
 
 
 def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
@@ -327,23 +327,23 @@ if uploaded_file:
                 #     file_name=f"Labels_{fn}.pdf"
                 # )
 
-                table_rows = []
-                for i, r in enumerate(filtered):
-                    try:
-                        tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
-                    except:
-                        tdisp = r['time']
+            table_rows = []
+            for i, r in enumerate(filtered):
+                try:
+                    tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
+                except:
+                    tdisp = r['time']
 
-                    table_rows.append({
-                        'No': label_start + i,
-                        'Flight': r['flight'],
-                        'Time': tdisp,
-                        'Dest': r['dest'],
-                        'Type': r['type'],
-                        'Reg': r['reg']
-                    })
+                table_rows.append({
+                    'No': label_start + i,
+                    'Flight': r['flight'],
+                    'Time': tdisp,
+                    'Dest': r['dest'],
+                    'Type': r['type'],
+                    'Reg': r['reg']
+                })
 
-                st.table(table_rows)
+             st.table(table_rows)
 
 
 
