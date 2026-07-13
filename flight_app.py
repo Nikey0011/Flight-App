@@ -313,26 +313,27 @@ if uploaded_file:
                 file_name=f"{fn}.docx"
             )
 
-            col_mid.download_button(
+                        col_mid.download_button(
                 "📥 Download Flight List ONE Page",
                 data=docx_one_page,
                 file_name=f"{fn}_onepage.docx"
             )
-               
-               # col1.download_button("📥 Download Flight List TWO pages", data=build_docx_stream(filtered, s_dt, e_dt).getvalue(), file_name=f"{fn}.docx")
-               
-               # col_mid.download_button("📥 Download Flight List ONE Page", data=build_docx_onepage_stream(filtered, s_dt, e_dt).getvalue(), file_name=f"{fn}_onepage.docx")
-              
-                # col2.download_button("📥 Download Folder Labels PDF", data=build_labels_stream(filtered, label_start).getvalue(), file_name=f"Labels_{fn}.pdf")
-                
-                table_rows = []
-                for i, r in enumerate(filtered):
-                    try: 
-                        tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
-                    except: 
-                        tdisp = r['time']
-                        
-                      table_rows.append({
+
+            # PDF button temporarily disabled for testing
+            # col2.download_button(
+            #     "📥 Download Folder Labels PDF",
+            #     data=build_labels_stream(filtered, label_start).getvalue(),
+            #     file_name=f"Labels_{fn}.pdf"
+            # )
+
+            table_rows = []
+            for i, r in enumerate(filtered):
+                try:
+                    tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
+                except:
+                    tdisp = r['time']
+
+                table_rows.append({
                     'No': label_start + i,
                     'Flight': r['flight'],
                     'Time': tdisp,
@@ -340,8 +341,8 @@ if uploaded_file:
                     'Type': r['type'],
                     'Reg': r['reg']
                 })
-                st.table(table_rows)
 
+            st.table(table_rows)
 
 
 
