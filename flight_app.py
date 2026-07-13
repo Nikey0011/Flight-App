@@ -327,9 +327,19 @@ if uploaded_file:
                 
                 table_rows = []
                 for i, r in enumerate(filtered):
-                    try: tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
-                    except: tdisp = r['time']
-                    table_rows.append({'No': label_start + i, 'Flight': r['flight'], 'Time': tdisp, 'Dest': r['dest'], 'Type': r['type'], 'Reg': r['reg']})
+                    try: 
+                        tdisp = datetime.strptime(r['time'], '%I:%M %p').strftime('%H:%M')
+                    except: 
+                        tdisp = r['time']
+                        
+                      table_rows.append({
+                    'No': label_start + i,
+                    'Flight': r['flight'],
+                    'Time': tdisp,
+                    'Dest': r['dest'],
+                    'Type': r['type'],
+                    'Reg': r['reg']
+                })
                 st.table(table_rows)
 
 
