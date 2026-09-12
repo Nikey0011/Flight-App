@@ -50,80 +50,560 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# # --- Parsing patterns ---
+# TIME_LINE = re.compile(r"^(\d{1,2}:\d{2}\s?[AP]M)\s+([A-Z0-9]{2,4}\d*[A-Z]?)\s*$", re.IGNORECASE)
+# DATE_HEADER = re.compile(r"^[A-Za-z]+,\s+\w+\s+\d{1,2}\s*$")
+# IATA_IN_PARENS = re.compile(r"\(([^)]+)\)")
+# PLANE_TYPES = ['A21N','A20N','A320','32Q','320','73H','737','74Y','77W','B77W','789','B789','359','A359','332','A332','AT76','DH8C','DH3','AT7','388','333','A333','330','76V','77L','B38M','A388','772','B772','32X','77X']
+# PLANE_TYPE_PATTERN = re.compile(r"\b(" + "|".join(sorted(set(PLANE_TYPES), key=len, reverse=True)) + r")\b", re.IGNORECASE)
+
+# NORMALIZE_MAP = {
+#     '32q': 'A320', '320': 'A320', 'a320': 'A320', '32x': 'A320',
+#     '789': 'B789', 'b789': 'B789', '772': 'B772', 'b772': 'B772',
+#     '77w': 'B77W', 'b77w': 'B77W', '332': 'A332', 'a332': 'A332',
+#     '333': 'A333', 'a333': 'A333', '330': 'A330', 'a330': 'A330',
+#     '359': 'A359', 'a359': 'A359', '388': 'A388', 'a388': 'A388',
+#     '737': 'B737', '73h': 'B737', 'at7': 'AT76'
+# }
+# ALLOWED_AIRLINES = {"NZ", "QF", "JQ", "CZ", "CA", "SQ", "LA", "FX"}
+# NZ_DOMESTIC_IATA = {"AKL","WLG","CHC","ZQN","TRG","NPE","PMR","NSN","NPL","DUD","IVC","TUO","WRE","BHE","ROT","GIS","KKE","WHK","WAG","PPQ"}
+# REGO_LIKE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-–—]*$")
+
+# def normalize_type(t: Optional[str]) -> str:
+#     if not t: return ""
+#     key = t.strip().lower()
+#     return NORMALIZE_MAP.get(key, t.strip().upper())
+
+# def try_parse_date_header(line: str, year: int) -> Optional[datetime.date]:
+#     candidates = ["%A, %b %d %Y", "%A, %B %d %Y", "%a, %b %d %Y", "%a, %B %d %Y"]
+#     text = line.strip() + f" {year}"
+#     for fmt in candidates:
+#         try: return datetime.strptime(text, fmt).date()
+#         except Exception: continue
+#     return None
+
+# def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
+#     records = []
+#     current_date = None
+#     i = 0
+#     L = len(lines)
+#     while i < L:
+#         line = lines[i].strip()
+#         if DATE_HEADER.match(line):
+#             parsed = try_parse_date_header(line, year)
+#             current_date = parsed if parsed else None
+#             i += 1
+#             continue
+#         m = TIME_LINE.match(line)
+#         if m and current_date is not None:
+#             time_str_raw, flight_raw = m.groups()
+#             dest_line = lines[i+1].strip() if i+1 < L else ''
+#             carrier_line = lines[i+2].rstrip('\n') if i+2 < L else ''
+#             m2 = IATA_IN_PARENS.search(dest_line)
+#             dest_iata = (m2.group(1).strip().upper() if m2 else '').upper()
+#             mtype = PLANE_TYPE_PATTERN.search(carrier_line or '')
+#             plane_type = normalize_type(mtype.group(1) if mtype else '')
+#             reg = ''
+#             parens = IATA_IN_PARENS.findall(carrier_line or '')
+#             if parens:
+#                 for candidate in reversed(parens):
+#                     cand = candidate.strip()
+#                     if REGO_LIKE.match(cand) and ('-' in cand or '–' in cand or '—' in cand):
+#                         reg = cand
+#                         break
+#                 if not reg: reg = parens[-1].strip()
+#             dep_dt = None
+#             try:
+#                 tnorm = time_str_raw.strip().upper().replace(" ", "")
+#                 if re.match(r"^\d{1,2}:\d{2}[AP]M$", tnorm):
+#                     dep_dt = datetime.strptime(f"{current_date} {tnorm}", "%Y-%m-%d %I:%M%p")
+#                 else:
+#                     dep_dt = datetime.strptime(f"{current_date} {time_str_raw.strip()}", "%Y-%m-%d %I:%M %p")
+#             except Exception: dep_dt = None
+#             records.append({'dt': dep_dt, 'time': time_str_raw.strip(), 'flight': flight_raw.strip().upper(), 'dest': dest_iata, 'type': plane_type, 'reg': reg})
+#             i += 3
+#             continue
+#         i += 1
+#     return records
+
 # --- Parsing patterns ---
-TIME_LINE = re.compile(r"^(\d{1,2}:\d{2}\s?[AP]M)\s+([A-Z0-9]{2,4}\d*[A-Z]?)\s*$", re.IGNORECASE)
-DATE_HEADER = re.compile(r"^[A-Za-z]+,\s+\w+\s+\d{1,2}\s*$")
+TIME_ONLY_LINE = re.compile(
+    r"^(\d{1,2}:\d{2}\s?[AP]M)\s*$",
+    re.IGNORECASE
+)
+
+TIME_AND_FLIGHT_LINE = re.compile(
+    r"^(\d{1,2}:\d{2}\s?[AP]M)\s+([A-Z0-9]{2,8})\s*$",
+    re.IGNORECASE
+)
+
+DATE_HEADER = re.compile(
+    r"^[A-Za-z]+,\s+\w+\s+\d{1,2}\s*$"
+)
+
 IATA_IN_PARENS = re.compile(r"\(([^)]+)\)")
-PLANE_TYPES = ['A21N','A20N','A320','32Q','320','73H','737','74Y','77W','B77W','789','B789','359','A359','332','A332','AT76','DH8C','DH3','AT7','388','333','A333','330','76V','77L','B38M','A388','772','B772','32X','77X']
-PLANE_TYPE_PATTERN = re.compile(r"\b(" + "|".join(sorted(set(PLANE_TYPES), key=len, reverse=True)) + r")\b", re.IGNORECASE)
+
+PLANE_TYPES = [
+    'A21N','A20N','A320','32Q','320','73H','737','74Y','77W',
+    'B77W','789','B789','359','A359','332','A332','AT76','DH8C',
+    'DH3','AT7','388','333','A333','330','76V','77L','B38M',
+    'A388','772','B772','32X','77X'
+]
+
+PLANE_TYPE_PATTERN = re.compile(
+    r"\b(" + "|".join(
+        sorted(set(PLANE_TYPES), key=len, reverse=True)
+    ) + r")\b",
+    re.IGNORECASE
+)
 
 NORMALIZE_MAP = {
-    '32q': 'A320', '320': 'A320', 'a320': 'A320', '32x': 'A320',
-    '789': 'B789', 'b789': 'B789', '772': 'B772', 'b772': 'B772',
-    '77w': 'B77W', 'b77w': 'B77W', '332': 'A332', 'a332': 'A332',
-    '333': 'A333', 'a333': 'A333', '330': 'A330', 'a330': 'A330',
-    '359': 'A359', 'a359': 'A359', '388': 'A388', 'a388': 'A388',
-    '737': 'B737', '73h': 'B737', 'at7': 'AT76'
+    '32q': 'A320',
+    '320': 'A320',
+    'a320': 'A320',
+    '32x': 'A320',
+    '789': 'B789',
+    'b789': 'B789',
+    '772': 'B772',
+    'b772': 'B772',
+    '77w': 'B77W',
+    'b77w': 'B77W',
+    '332': 'A332',
+    'a332': 'A332',
+    '333': 'A333',
+    'a333': 'A333',
+    '330': 'A330',
+    'a330': 'A330',
+    '359': 'A359',
+    'a359': 'A359',
+    '388': 'A388',
+    'a388': 'A388',
+    '737': 'B737',
+    '73h': 'B737',
+    'at7': 'AT76'
 }
-ALLOWED_AIRLINES = {"NZ", "QF", "JQ", "CZ", "CA", "SQ", "LA", "FX"}
-NZ_DOMESTIC_IATA = {"AKL","WLG","CHC","ZQN","TRG","NPE","PMR","NSN","NPL","DUD","IVC","TUO","WRE","BHE","ROT","GIS","KKE","WHK","WAG","PPQ"}
-REGO_LIKE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-–—]*$")
+
+ALLOWED_AIRLINES = {
+    "NZ", "QF", "JQ", "CZ", "CA", "SQ", "LA", "FX"
+}
+
+NZ_DOMESTIC_IATA = {
+    "AKL","WLG","CHC","ZQN","TRG","NPE","PMR","NSN",
+    "NPL","DUD","IVC","TUO","WRE","BHE","ROT","GIS",
+    "KKE","WHK","WAG","PPQ"
+}
+
+REGO_LIKE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9\-–—]*$"
+)
+
+STATUS_LINE = re.compile(
+    r"^(Scheduled|Estimated|Landed|Cancelled|Delayed|Departed|Arrived)\b",
+    re.IGNORECASE
+)
+
+GATE_LINE = re.compile(
+    r"^(Gate|Runway):",
+    re.IGNORECASE
+)
+
 
 def normalize_type(t: Optional[str]) -> str:
-    if not t: return ""
+    if not t:
+        return ""
+
     key = t.strip().lower()
     return NORMALIZE_MAP.get(key, t.strip().upper())
 
+
 def try_parse_date_header(line: str, year: int) -> Optional[datetime.date]:
-    candidates = ["%A, %b %d %Y", "%A, %B %d %Y", "%a, %b %d %Y", "%a, %B %d %Y"]
+    candidates = [
+        "%A, %b %d %Y",
+        "%A, %B %d %Y",
+        "%a, %b %d %Y",
+        "%a, %B %d %Y"
+    ]
+
     text = line.strip() + f" {year}"
+
     for fmt in candidates:
-        try: return datetime.strptime(text, fmt).date()
-        except Exception: continue
+        try:
+            return datetime.strptime(text, fmt).date()
+        except Exception:
+            continue
+
     return None
 
+
+def parse_dt(date_obj, time_str):
+    """Convert FlightRadar time text into datetime."""
+    if not date_obj or not time_str:
+        return None
+
+    try:
+        tnorm = time_str.strip().upper().replace(" ", "")
+
+        return datetime.strptime(
+            f"{date_obj} {tnorm}",
+            "%Y-%m-%d %I:%M%p"
+        )
+
+    except Exception:
+        return None
+
+
 def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
+    """
+    Parse both:
+
+    OLD FlightRadar format:
+        12:30 AM NZ112 Sydney (SYD) Air New Zealand A21N (ZK-NNG) Scheduled
+
+    NEW FlightRadar format:
+        12:35 AM
+        NZ126
+        (+6)
+        Also marketed as...
+        New Zealand
+        From:
+        Melbourne
+        MEL
+        YMML
+        Air New Zealand
+        Airbus A321neo
+        ZK-NNC
+        Gate:...
+        Landed 12:35 AM
+        HistoryNZ126
+    """
+
     records = []
     current_date = None
     i = 0
     L = len(lines)
+
     while i < L:
+
+        # ---------------------------------------------------------
+        # Clean current line
+        # ---------------------------------------------------------
         line = lines[i].strip()
-        if DATE_HEADER.match(line):
-            parsed = try_parse_date_header(line, year)
-            current_date = parsed if parsed else None
+
+        if not line:
             i += 1
             continue
-        m = TIME_LINE.match(line)
-        if m and current_date is not None:
-            time_str_raw, flight_raw = m.groups()
-            dest_line = lines[i+1].strip() if i+1 < L else ''
-            carrier_line = lines[i+2].rstrip('\n') if i+2 < L else ''
+
+        # ---------------------------------------------------------
+        # DATE HEADER
+        # ---------------------------------------------------------
+        if DATE_HEADER.match(line):
+            parsed = try_parse_date_header(line, year)
+
+            if parsed:
+                current_date = parsed
+
+            i += 1
+            continue
+
+        if current_date is None:
+            i += 1
+            continue
+
+        # =========================================================
+        # FORMAT 1 — OLD FLIGHTRADAR FORMAT
+        # =========================================================
+        old_match = TIME_AND_FLIGHT_LINE.match(line)
+
+        if old_match:
+
+            time_str_raw, flight_raw = old_match.groups()
+
+            # Old format has destination immediately afterwards
+            dest_line = (
+                lines[i + 1].strip()
+                if i + 1 < L else ""
+            )
+
+            # Carrier / aircraft / reg line
+            carrier_line = (
+                lines[i + 2].strip()
+                if i + 2 < L else ""
+            )
+
+            # Destination IATA
             m2 = IATA_IN_PARENS.search(dest_line)
-            dest_iata = (m2.group(1).strip().upper() if m2 else '').upper()
-            mtype = PLANE_TYPE_PATTERN.search(carrier_line or '')
-            plane_type = normalize_type(mtype.group(1) if mtype else '')
-            reg = ''
-            parens = IATA_IN_PARENS.findall(carrier_line or '')
+
+            dest_iata = (
+                m2.group(1).strip().upper()
+                if m2 else ""
+            )
+
+            # Aircraft type
+            mtype = PLANE_TYPE_PATTERN.search(
+                carrier_line
+            )
+
+            plane_type = normalize_type(
+                mtype.group(1)
+                if mtype else ""
+            )
+
+            # Registration
+            reg = ""
+
+            parens = IATA_IN_PARENS.findall(
+                carrier_line
+            )
+
             if parens:
                 for candidate in reversed(parens):
+
                     cand = candidate.strip()
-                    if REGO_LIKE.match(cand) and ('-' in cand or '–' in cand or '—' in cand):
+
+                    if (
+                        REGO_LIKE.match(cand)
+                        and (
+                            "-" in cand
+                            or "–" in cand
+                            or "—" in cand
+                        )
+                    ):
                         reg = cand
                         break
-                if not reg: reg = parens[-1].strip()
-            dep_dt = None
-            try:
-                tnorm = time_str_raw.strip().upper().replace(" ", "")
-                if re.match(r"^\d{1,2}:\d{2}[AP]M$", tnorm):
-                    dep_dt = datetime.strptime(f"{current_date} {tnorm}", "%Y-%m-%d %I:%M%p")
-                else:
-                    dep_dt = datetime.strptime(f"{current_date} {time_str_raw.strip()}", "%Y-%m-%d %I:%M %p")
-            except Exception: dep_dt = None
-            records.append({'dt': dep_dt, 'time': time_str_raw.strip(), 'flight': flight_raw.strip().upper(), 'dest': dest_iata, 'type': plane_type, 'reg': reg})
+
+                if not reg:
+                    reg = parens[-1].strip()
+
+            dep_dt = parse_dt(
+                current_date,
+                time_str_raw
+            )
+
+            records.append({
+                'dt': dep_dt,
+                'time': time_str_raw.strip(),
+                'flight': flight_raw.strip().upper(),
+                'dest': dest_iata,
+                'type': plane_type,
+                'reg': reg
+            })
+
             i += 3
             continue
-        i += 1
+
+        # =========================================================
+        # FORMAT 2 — NEW FLIGHTRADAR FORMAT
+        # =========================================================
+
+        time_match = TIME_ONLY_LINE.match(line)
+
+        if not time_match:
+            i += 1
+            continue
+
+        time_str_raw = time_match.group(1)
+
+        # ---------------------------------------------------------
+        # Find flight number immediately after the time.
+        #
+        # We skip blank lines, (+6), "Also marketed as...", etc.
+        # ---------------------------------------------------------
+        j = i + 1
+        flight_raw = ""
+
+        while j < L:
+
+            candidate = lines[j].strip()
+
+            if not candidate:
+                j += 1
+                continue
+
+            # Codeshare count
+            if re.match(r"^\(\+\d+\)$", candidate):
+                j += 1
+                continue
+
+            # Codeshare description
+            if candidate.lower().startswith(
+                "also marketed as"
+            ):
+                j += 1
+                continue
+
+            # Stop if something has gone badly wrong
+            if DATE_HEADER.match(candidate):
+                break
+
+            # First useful line is the flight number
+            flight_raw = candidate.upper()
+            break
+
+        if not flight_raw:
+            i += 1
+            continue
+
+        # ---------------------------------------------------------
+        # Find "From:"
+        # ---------------------------------------------------------
+        from_index = None
+        k = j + 1
+
+        while k < L:
+
+            candidate = lines[k].strip()
+
+            if candidate.lower() == "from:":
+                from_index = k
+                break
+
+            if DATE_HEADER.match(candidate):
+                break
+
+            k += 1
+
+        if from_index is None:
+            i = j + 1
+            continue
+
+        # ---------------------------------------------------------
+        # New format structure:
+        #
+        # From:
+        # Melbourne
+        # MEL
+        # YMML
+        # Air New Zealand
+        # Airbus A321neo
+        # ZK-NNC
+        # Gate:18
+        # Landed 12:15 AM
+        #
+        # We can therefore identify the important fields
+        # relative to "From:".
+        # ---------------------------------------------------------
+
+        city = ""
+        dest_iata = ""
+        icao = ""
+        airline = ""
+        aircraft = ""
+        reg = ""
+
+        p = from_index + 1
+
+        # Remove blank lines
+        while p < L and not lines[p].strip():
+            p += 1
+
+        # City
+        if p < L:
+            city = lines[p].strip()
+            p += 1
+
+        # IATA
+        while p < L and not lines[p].strip():
+            p += 1
+
+        if p < L:
+            candidate = lines[p].strip()
+
+            if re.match(r"^[A-Z]{3}$", candidate):
+                dest_iata = candidate.upper()
+                p += 1
+
+        # ICAO
+        while p < L and not lines[p].strip():
+            p += 1
+
+        if p < L:
+            candidate = lines[p].strip()
+
+            if re.match(r"^[A-Z]{4}$", candidate):
+                icao = candidate.upper()
+                p += 1
+
+        # Airline
+        while p < L and not lines[p].strip():
+            p += 1
+
+        if p < L:
+            airline = lines[p].strip()
+            p += 1
+
+        # Aircraft
+        while p < L and not lines[p].strip():
+            p += 1
+
+        if p < L:
+            aircraft = lines[p].strip()
+            p += 1
+
+        # ---------------------------------------------------------
+        # Registration is optional.
+        #
+        # If the next line is not Gate/Runway/Status/History,
+        # treat it as the registration.
+        # ---------------------------------------------------------
+        while p < L and not lines[p].strip():
+            p += 1
+
+        if p < L:
+
+            candidate = lines[p].strip()
+
+            if (
+                not GATE_LINE.match(candidate)
+                and not STATUS_LINE.match(candidate)
+                and not candidate.lower().startswith("history")
+                and not DATE_HEADER.match(candidate)
+            ):
+                reg = candidate
+                p += 1
+
+        # ---------------------------------------------------------
+        # Aircraft type
+        #
+        # New FlightRadar often gives:
+        # Airbus A321neo
+        # Boeing 777-300ER
+        #
+        # Keep the full aircraft name where available.
+        # For old-style shorthand, normalize it.
+        # ---------------------------------------------------------
+        plane_type = aircraft.strip()
+
+        if not plane_type:
+            plane_type = ""
+
+        # If it is a shorthand type such as 32Q / 77W / 789,
+        # use the existing normalization.
+        if plane_type.upper() in PLANE_TYPES:
+            plane_type = normalize_type(plane_type)
+
+        # ---------------------------------------------------------
+        # Create datetime
+        # ---------------------------------------------------------
+        dep_dt = parse_dt(
+            current_date,
+            time_str_raw
+        )
+
+        records.append({
+            'dt': dep_dt,
+            'time': time_str_raw.strip(),
+            'flight': flight_raw.strip().upper(),
+            'dest': dest_iata,
+            'type': plane_type,
+            'reg': reg
+        })
+
+        # Move forward.
+        #
+        # We don't need to parse Gate/Runway/Status/History.
+        # The next flight begins at the next TIME_ONLY_LINE.
+        i = max(p, j + 1)
+
     return records
 
 def filter_records(records: List[Dict], start_time: dtime, end_time: dtime):
