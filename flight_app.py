@@ -676,17 +676,30 @@ def filter_records(records: List[Dict], start_time: dtime, end_time: dtime):
             continue
 
         out.append(r)
-
     out.sort(key=lambda x: x['dt'] or datetime.max)
 
-    print(f"Allowed airline flights: {airline_pass}")
-    print(f"NZ domestic removed:     {domestic_removed}")
-    print(f"Outside time window:     {outside_window}")
-    print(f"Invalid/missing datetime: {invalid_dt}")
-    print(f"FINAL FILTERED FLIGHTS:  {len(out)}")
-    print("==================================")
+    st.write("### DEBUG")
+    st.write(f"Dates found: {dates}")
+    st.write(f"Start window: {start_dt}")
+    st.write(f"End window: {end_dt}")
+    st.write(f"Total parsed records: {len(records)}")
+    st.write(f"Allowed airline flights: {airline_pass}")
+    st.write(f"NZ domestic removed: {domestic_removed}")
+    st.write(f"Outside time window: {outside_window}")
+    st.write(f"Invalid/missing datetime: {invalid_dt}")
+    st.write(f"FINAL FILTERED FLIGHTS: {len(out)}")
 
     return out, start_dt, end_dt
+    # out.sort(key=lambda x: x['dt'] or datetime.max)
+
+    # print(f"Allowed airline flights: {airline_pass}")
+    # print(f"NZ domestic removed:     {domestic_removed}")
+    # print(f"Outside time window:     {outside_window}")
+    # print(f"Invalid/missing datetime: {invalid_dt}")
+    # print(f"FINAL FILTERED FLIGHTS:  {len(out)}")
+    # print("==================================")
+
+    # return out, start_dt, end_dt
 # --- TWO-PAGE DOCX ---
 def build_docx_stream(records: List[Dict], start_dt: datetime, end_dt: datetime) -> io.BytesIO:
     doc = Document()
