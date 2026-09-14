@@ -668,6 +668,12 @@ def filter_records(records: List[Dict], start_time: dtime, end_time: dtime):
         airline_pass += 1
 
         if (r.get('dest') or '').upper() in NZ_DOMESTIC_IATA:
+            st.write(
+                "REMOVED AS DOMESTIC:",
+                r.get('flight'),
+                r.get('dest'),
+                r.get('dt')
+            )
             domestic_removed += 1
             continue
 
