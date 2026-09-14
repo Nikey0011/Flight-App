@@ -606,23 +606,87 @@ def parse_raw_lines(lines: List[str], year: int) -> List[Dict]:
 
     return records
 
+# def filter_records(records: List[Dict], start_time: dtime, end_time: dtime):
+#     dates = sorted({r['dt'].date() for r in records if r.get('dt')})
+#     if not dates: return [], None, None
+#     day1 = dates[0]
+#     day2 = dates[1] if len(dates) >= 2 else (day1 + timedelta(days=1))
+#     start_dt = datetime.combine(day1, start_time)
+#     end_dt = datetime.combine(day2, end_time)
+#     if end_dt <= start_dt: return [], start_dt, end_dt
+#     def allowed(r):
+#         if not r.get('dt'): return False
+#         if (r.get('flight') or '')[:2].upper() not in ALLOWED_AIRLINES: return False
+#         if (r.get('dest') or '').upper() in NZ_DOMESTIC_IATA: return False
+#         return start_dt <= r['dt'] <= end_dt
+#     out = [r for r in records if allowed(r)]
+#     out.sort(key=lambda x: x['dt'] or datetime.max)
+#     return out, start_dt, end_dt
 def filter_records(records: List[Dict], start_time: dtime, end_time: dtime):
     dates = sorted({r['dt'].date() for r in records if r.get('dt')})
-    if not dates: return [], None, None
+
+    if not dates:
+        print("DEBUG: No valid dates found in parsed records.")
+        return [], None, None
+
     day1 = dates[0]
     day2 = dates[1] if len(dates) >= 2 else (day1 + timedelta(days=1))
+
     start_dt = datetime.combine(day1, start_time)
     end_dt = datetime.combine(day2, end_time)
-    if end_dt <= start_dt: return [], start_dt, end_dt
-    def allowed(r):
-        if not r.get('dt'): return False
-        if (r.get('flight') or '')[:2].upper() not in ALLOWED_AIRLINES: return False
-        if (r.get('dest') or '').upper() in NZ_DOMESTIC_IATA: return False
-        return start_dt <= r['dt'] <= end_dt
-    out = [r for r in records if allowed(r)]
-    out.sort(key=lambda x: x['dt'] or datetime.max)
-    return out, start_dt, end_dt
 
+    print("========== FLIGHT DEBUG ==========")
+    print(f"Dates found: {dates}")
+    print(f"Start window: {start_dt}")
+    print(f"End window:   {end_dt}")
+    print(f"Total parsed records: {len(records)}")
+
+    if end_dt <= start_dt:
+        print("DEBUG: End datetime is before/equal to start datetime.")
+        print("==================================")
+        return [], start_dt, end_dt
+
+    airline_pass = 0
+    domestic_removed = 0
+    outside_window = 0
+    invalid_dt = 0
+
+    out = []
+
+    for r in records:
+
+        if not r.get('dt'):
+            invalid_dt += 1
+            continue
+
+        flight = (r.get('flight') or '').upper()
+        airline = flight[:2]
+
+        if airline not in ALLOWED_AIRLINES:
+            continue
+
+        airline_pass += 1
+
+        if (r.get('dest') or '').upper() in NZ_DOMESTIC_IATA:
+            domestic_removed += 1
+            continue
+
+        if not (start_dt <= r['dt'] <= end_dt):
+            outside_window += 1
+            continue
+
+        out.append(r)
+
+    out.sort(key=lambda x: x['dt'] or datetime.max)
+
+    print(f"Allowed airline flights: {airline_pass}")
+    print(f"NZ domestic removed:     {domestic_removed}")
+    print(f"Outside time window:     {outside_window}")
+    print(f"Invalid/missing datetime: {invalid_dt}")
+    print(f"FINAL FILTERED FLIGHTS:  {len(out)}")
+    print("==================================")
+
+    return out, start_dt, end_dt
 # --- TWO-PAGE DOCX ---
 def build_docx_stream(records: List[Dict], start_dt: datetime, end_dt: datetime) -> io.BytesIO:
     doc = Document()
